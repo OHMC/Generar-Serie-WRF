@@ -80,7 +80,7 @@ def guardarPickle(dfTmp, filename: str):
 
 
 def generar_serie(path: str, lat: float, lon: float, inicio: str, fin: str,
-                  variable: str, loca: str, param: str):
+                  variable: str, loca: str, param: str, run: str):
 
     lista = obtenerListaArchivos(path)
 
@@ -90,13 +90,14 @@ def generar_serie(path: str, lat: float, lon: float, inicio: str, fin: str,
 
     dfData = extraerWrfoutSerie(lista_filtrada, variable, x, y)
 
-    guardarPickle(dfData, f'{variable}_{param}_{loca}')
+    guardarPickle(dfData, f'{variable}_{param}_{run}_{loca}')
 
 
 def main():
     base = '/home/datos/wrfdatos/wrfout/20*_*/'
 
-    parser = argparse.ArgumentParser(prog="Obtener variable puntual WRF")
+    parser = argparse.ArgumentParser(prog="Obtener variable puntual WRF,\
+                                           generarSerie.py")
 
     parser.add_argument("variable",
                         help="variable con la nomenclatura de  WRF")
@@ -117,8 +118,8 @@ def main():
 
     for param in ['A', 'B', 'C', 'D']:
         path = f'{base}wrfout_{param}_d01_*_{args.run}:00:00'
-        generar_serie(path, args.lat, args.lon, args.inicio,
-                      args.fin, args.variable, args.loca, param)
+        generar_serie(path, args.lat, args.lon, args.inicio, args.fin,
+                      args.variable, args.loca, param, args.run)
 
 
 if __name__ == "__main__":
