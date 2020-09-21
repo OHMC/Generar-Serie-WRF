@@ -115,6 +115,6 @@ def main():
         generar_serie(path, args.lat, args.lon, args.variable, param)
  
 
- if __name__ == "__main__":
+if __name__ == "__main__":
     main()
     
