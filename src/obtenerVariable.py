@@ -22,7 +22,7 @@ def extraerWrfoutSerie(wrf_file: str, variable: str, x: int, y: int):
 
     dfData = pd.DataFrame()
 
-    print(f'Processing: {wrf_file}')
+    print(f'Processing: {variable}')
 
     t2 = wrf.getvar(wrf_file, variable, timeidx=wrf.ALL_TIMES)
     t2_loc = t2[:, y, x]
@@ -30,15 +30,15 @@ def extraerWrfoutSerie(wrf_file: str, variable: str, x: int, y: int):
     dfT2loc = pd.DataFrame(t2_loc.to_pandas(), columns=[variable])
 
     if variable == 'T2':
-        dfT2ubp['T2'] = dfT2ubp['T2'] - 273.15
+        dfT2loc['T2'] = dfT2loc['T2'] - 273.15
 
-    dfData = pd.concat([dfData, dfT2ubp[9:])
+    dfData = pd.concat([dfData, dfT2loc[9:]])
 
     return dfData
 
 
-def obtener_variable(wrfout: str, lat: float, lon: float, runtime: str,
-                     variable: str, loca: str, param: str):
+def obtener_variable(wrfout: str, runtime: str,
+                     variable: str, param: str):
 
     aws_list = pd.read_json('config/aws_list.json')
 
@@ -51,8 +51,8 @@ def obtener_variable(wrfout: str, lat: float, lon: float, runtime: str,
     for index, values in aws_list.iterrows():
         x, y = getXeY(wrf_file, values['lat'], values['lon'])
         dfData = extraerWrfoutSerie(wrf_file, variable, x, y)
-        pickleName = (f'{variable}_{param}_'
-                      f'{runtime.strftime('%Y-%m-%dT%H')}_{loca}')
+        pickleName = (f"{variable}_{param}_"
+                      f"{runtime.strftime('%Y-%m-%dT%H')}_{values['short']}")
         guardarPickle(dfData, pickleName)
 
     wrf_file.close()
@@ -74,10 +74,6 @@ def main():
                         help="variable con la nomenclatura de  WRF")
     parser.add_argument("corrida",
                         help="fecha de la corrida: ej 2019-06-01T06")
-    parser.add_argument("lat",
-                        help="latitud")
-    parser.add_argument("lon",
-                        help="longitud")
 
     args = parser.parse_args()
 
@@ -87,8 +83,7 @@ def main():
         path = (f"{base}{runtime.strftime('%Y_%m')}/wrfout_{param}_d01_"
                 f"{runtime.strftime('%Y-%m-%d')}_"
                 f"{runtime.strftime('%H')}:00:00")
-        obtener_variable(path, args.lat, args.lon, runtime,
-                         args.variable, param)
+        obtener_variable(path, runtime, args.variable, param)
 
 
 if __name__ == "__main__":
