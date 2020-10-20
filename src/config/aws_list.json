@@ -1,0 +1,46 @@
+{
+    "Estaciones": {
+        "1": "APRHi - Campus UBP",
+        "2": "APRHi - Lab. Hidraulica",
+        "3": "Aproduco - Villa Retiro AgriculturaCba",
+        "4": "Bouwer AgriculturaCba",
+        "5": "Cno 60 Cuadras AgriculturaCba",
+        "6": "EPEC - Azotea Ed. Central",
+        "7": "FCA - Capilla de los Remedios AgriculturaCba",
+        "8": "Cordoba Aero",
+        "9": "Observatorio"
+    },
+    "short":{
+        "1": "UBP",
+        "2": "LH",
+        "3": "VR",
+        "4": "BW",
+        "5": "C60",
+        "6": "EPEC",
+        "7": "FCA",
+        "8": "COR",
+        "9": "OBS"
+    },
+    "lat": {
+        "1": -31.337274,
+        "2": -31.441,
+        "3": -31.3382,
+        "4": -31.5503,
+        "5": -31.5414,
+        "6": -31.4072,
+        "7": -31.475875,
+        "8": -31.296639,
+        "9": -31.420703
+    },
+    "lon": {
+        "1": -64.255563,
+        "2": -64.191,
+        "3": -64.1389,
+        "4": -64.1979,
+        "5": -64.1266,
+        "6": -64.1862,
+        "7": -64.007049,
+        "8": -64.211916,
+        "9": -64.198286
+    }
+}
