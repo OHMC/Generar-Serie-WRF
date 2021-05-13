@@ -2,6 +2,7 @@ import glob
 import pandas as pd
 import wrf
 import re
+import numpy as np
 import argparse
 from datetime import datetime
 from netCDF4 import Dataset
@@ -45,6 +46,26 @@ def filter_by_dates(file_list, start_date, end_date, extra_filter=None):
     return filtered_dates
 
 
+def getT2product(dfT2, dfTSK):
+    """ Obtiene un pronostico de temperatura a partir de las variables
+    T2 y TSK
+    """
+    mask = dfTSK['TSK'].values - dfT2['T2'].values
+    mask = mask > 0
+    maskinverted = np.invert(mask)
+
+    fieldname = "T2P"
+    dfT2 = dfT2.rename(columns={'T2': fieldname})
+    dfTSK = dfTSK.rename(columns={'TSK': fieldname})
+
+    dfT2['date'] = dfT2.index
+    append = dfT2[mask].append(dfTSK[maskinverted], sort=True)
+    append.sort_index(inplace=True)
+
+    append = append[["T2P", 'date']]
+    return append
+
+
 def extraerWrfoutSerie(file_paths: str, variable: str, x: int, y: int):
     """ extrae de los arechivos wrfout listados en file_paths
     para la posicion (x, y) toda la serie de la variable
@@ -61,14 +82,18 @@ def extraerWrfoutSerie(file_paths: str, variable: str, x: int, y: int):
             continue
 
         t2 = wrf.getvar(wrf_temp, variable, timeidx=wrf.ALL_TIMES)
-        wrf_temp.close()
-        t2_ubp = t2[:, y, x]
+        t2_ema = t2[:, y, x]
 
-        dfT2ubp = pd.DataFrame(t2_ubp.to_pandas(), columns=[variable])
+        dfT2ema = pd.DataFrame(t2_ema.to_pandas(), columns=[variable])
         if variable == 'T2':
-            dfT2ubp['T2'] = dfT2ubp['T2'] - 273.15
-
-        dfData = pd.concat([dfData, dfT2ubp[9:33]])
+            dfT2ema['T2'] = dfT2ema['T2'] - 273.15
+            tTSK = wrf.getvar(wrf_temp, 'TSK', timeidx=wrf.ALL_TIMES)
+            tTSK_ema = tTSK[:, y, x]
+            dfTSKema = pd.DataFrame(tTSK_ema.to_pandas(), columns=['TSK'])
+            dfTSKema['TSK'] = dfTSKema['TSK'] - 273.15
+            dfT2ema = getT2product(dfT2ema, dfTSKema)
+        wrf_temp.close()
+        dfData = pd.concat([dfData, dfT2ema[9:33]])
 
     return dfData
 
