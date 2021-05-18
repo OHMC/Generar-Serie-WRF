@@ -95,7 +95,7 @@ def generar_serie(path: str, lat: float, lon: float, inicio: str, fin: str,
 
     lista = obtenerListaArchivos(path)
     if path_old != 0:
-        lista.append(obtenerListaArchivos(path_old))
+        lista.extend(obtenerListaArchivos(path_old))
 
     x, y = getXeY(lista[0], lat, lon)
 
