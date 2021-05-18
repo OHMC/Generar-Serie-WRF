@@ -80,7 +80,7 @@ def extraerWrfoutSerie(file_paths: str, variable: str, x: int, y: int, loca: str
     wrf_temp.close()
     wrf_temp = 0
     dfData = dfVARema[9:33]
-    dfData.to_csv(f'{variable}_{loca}_{run}_{par}.csv', mode='a', header=None, index=False)
+    dfData.to_csv(f'{variable}_{loca}_{run}_{par}.csv', mode='a', header=None)
     dfData = 0
 
 
