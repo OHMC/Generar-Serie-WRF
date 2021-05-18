@@ -2,11 +2,15 @@ import glob
 import pandas as pd
 import wrf
 import re
-import numpy as np
 import argparse
+import ray
+from libproc.genproc import getT2product
 from datetime import datetime
 from netCDF4 import Dataset
 from wrf import ll_to_xy
+
+
+ray.init(address='auto', _redis_password='5241590000000000')
 
 
 def obtenerListaArchivos(path: str):
@@ -46,56 +50,38 @@ def filter_by_dates(file_list, start_date, end_date, extra_filter=None):
     return filtered_dates
 
 
-def getT2product(dfT2, dfTSK):
-    """ Obtiene un pronostico de temperatura a partir de las variables
-    T2 y TSK
-    """
-    mask = dfTSK['TSK'].values - dfT2['T2'].values
-    mask = mask > 0
-    maskinverted = np.invert(mask)
-
-    fieldname = "T2P"
-    dfT2 = dfT2.rename(columns={'T2': fieldname})
-    dfTSK = dfTSK.rename(columns={'TSK': fieldname})
-
-    dfT2['date'] = dfT2.index
-    append = dfT2[mask].append(dfTSK[maskinverted], sort=True)
-    append.sort_index(inplace=True)
-
-    append = append[["T2P", 'date']]
-    return append
-
-
-def extraerWrfoutSerie(file_paths: str, variable: str, x: int, y: int):
+@ray.remote
+def extraerWrfoutSerie(file_paths: str, variable: str, x: int, y: int, loca: str, par: str, run: str):
     """ extrae de los arechivos wrfout listados en file_paths
     para la posicion (x, y) toda la serie de la variable
     seleccionada"""
 
-    dfData = pd.DataFrame()
+    print(f'Processing: {file_paths}')
 
-    for f in file_paths:
-        print(f'Processing: {f}')
+    try:
+        wrf_temp = Dataset(file_paths)
+    except OSError:
+        return
+    try:
+        var = wrf.getvar(wrf_temp, variable, timeidx=wrf.ALL_TIMES)
+    except RuntimeError:
+        print("Corrupted file")
+        return
 
-        try:
-            wrf_temp = Dataset(f)
-        except OSError:
-            continue
-
-        t2 = wrf.getvar(wrf_temp, variable, timeidx=wrf.ALL_TIMES)
-        t2_ema = t2[:, y, x]
-
-        dfT2ema = pd.DataFrame(t2_ema.to_pandas(), columns=[variable])
-        if variable == 'T2':
-            dfT2ema['T2'] = dfT2ema['T2'] - 273.15
-            tTSK = wrf.getvar(wrf_temp, 'TSK', timeidx=wrf.ALL_TIMES)
-            tTSK_ema = tTSK[:, y, x]
-            dfTSKema = pd.DataFrame(tTSK_ema.to_pandas(), columns=['TSK'])
-            dfTSKema['TSK'] = dfTSKema['TSK'] - 273.15
-            dfT2ema = getT2product(dfT2ema, dfTSKema)
-        wrf_temp.close()
-        dfData = pd.concat([dfData, dfT2ema[9:33]])
-
-    return dfData
+    var_ema = var[:, y, x]
+    dfVARema = pd.DataFrame(var_ema.to_pandas(), columns=[variable])
+    if variable == 'T2':
+        dfVARema['T2'] = dfVARema['T2'] - 273.15
+        tTSK = wrf.getvar(wrf_temp, 'TSK', timeidx=wrf.ALL_TIMES)
+        tTSK_ema = tTSK[:, y, x]
+        dfTSKema = pd.DataFrame(tTSK_ema.to_pandas(), columns=['TSK'])
+        dfTSKema['TSK'] = dfTSKema['TSK'] - 273.15
+        dfVARema = getT2product(dfVARema, dfTSKema)
+    wrf_temp.close()
+    wrf_temp = 0
+    dfData = dfVARema[9:33]
+    dfData.to_csv(f'{variable}_{loca}_{run}_{par}.csv', mode='a', header=None, index=False)
+    dfData = 0
 
 
 def guardarPickle(dfTmp, filename: str):
@@ -105,21 +91,30 @@ def guardarPickle(dfTmp, filename: str):
 
 
 def generar_serie(path: str, lat: float, lon: float, inicio: str, fin: str,
-                  variable: str, loca: str, param: str, run: str):
+                  variable: str, loca: str, param: str, run: str, path_old):
 
     lista = obtenerListaArchivos(path)
+    if path_old != 0:
+        lista.append(obtenerListaArchivos(path_old))
 
     x, y = getXeY(lista[0], lat, lon)
 
     lista_filtrada = filter_by_dates(lista, inicio, fin)
 
-    dfData = extraerWrfoutSerie(lista_filtrada, variable, x, y)
+    if not lista_filtrada:
+        print('no matced dates')
+        return
 
-    guardarPickle(dfData, f'{variable}_{param}_{run}_{loca}')
+    it = ray.util.iter.from_items(lista_filtrada)
+
+    dfData_ = [extraerWrfoutSerie.remote(filename, variable, x, y, loca, param, run) for filename in it.gather_async()]
+    ray.get(dfData_)
+
+    # guardarPickle(dfData, f'{variable}_{param}_{run}_{loca}')
 
 
 def main():
-    base = '/home/datos/wrfdatos/wrfout/20*_*/'
+    base = '/home/datos/wrf/wrfout/20*_*/'
 
     parser = argparse.ArgumentParser(prog="Obtener variable puntual WRF,\
                                            generarSerie.py")
@@ -141,10 +136,13 @@ def main():
 
     args = parser.parse_args()
 
-    for param in ['A', 'B', 'C', 'D']:
+    for param in ['A']:
         path = f'{base}wrfout_{param}_d01_*_{args.run}:00:00'
+        path_old = 0
+        if (datetime.strptime(args.inicio, '%Y-%m-%d').date() < datetime.strptime('2018-09-01', '%Y-%m-%d').date()):
+            path_old = f'{base}wrfout_d01_*_{args.run}:00:00'
         generar_serie(path, args.lat, args.lon, args.inicio, args.fin,
-                      args.variable, args.loca, param, args.run)
+                      args.variable, args.loca, param, args.run, path_old)
 
 
 if __name__ == "__main__":
