@@ -80,7 +80,7 @@ def extraerWrfoutSerie(file_paths: str, variable: str, x: int, y: int, loca: str
     wrf_temp.close()
     wrf_temp = 0
     dfData = dfVARema[9:33]
-    dfData.to_csv(f'{variable}_{loca}_{run}_{par}.csv', mode='a', header=None, index=False)
+    dfData.to_csv(f'{variable}_{loca}_{run}_{par}.csv', mode='a', header=None)
     dfData = 0
 
 
@@ -114,7 +114,7 @@ def generar_serie(path: str, lat: float, lon: float, inicio: str, fin: str,
 
 
 def main():
-    base = '/home/datos/wrf/wrfout/20*_*/'
+    base = '/home/datos/wrfdatos/wrfout/20*_*/'
 
     parser = argparse.ArgumentParser(prog="Obtener variable puntual WRF,\
                                            generarSerie.py")
@@ -137,7 +137,7 @@ def main():
     args = parser.parse_args()
 
     for param in ['A']:
-        path = f'{base}wrfout_{param}_d01_*_{args.run}:00:00'
+        path = f'{base}wrfout_{param}_d01_*_{args.run}:00:00*'
         path_old = 0
         if (datetime.strptime(args.inicio, '%Y-%m-%d').date() < datetime.strptime('2018-09-01', '%Y-%m-%d').date()):
             path_old = f'{base}wrfout_d01_*_{args.run}:00:00'
