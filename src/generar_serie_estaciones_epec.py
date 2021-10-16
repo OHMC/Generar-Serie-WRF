@@ -139,7 +139,7 @@ def extraer_serie_por_corrida(file_paths, latlong_estaciones, par, run):
             var_ema = var[:, int(estacion.y), int(estacion.x)]
 
             dfVARema = pd.DataFrame(var_ema.to_pandas(), columns=[var_name])
-            dfVARema['T2'] = dfVARema['T2'] - 273.15
+            # dfVARema['T2'] = dfVARema['T2'] - 273.15
             
             if var_name ==  'T2':
                 dfVARema['T2'] = dfVARema['T2'] - 273.15
