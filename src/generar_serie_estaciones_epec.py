@@ -29,6 +29,7 @@ def getXeY_from_list(wrfout: str, estaciones: pd.DataFrame):
         wrf_file = Dataset(wrfout)
     except OSError:
         print("No hay wrfout")
+
     lista_x = []
     lista_y = []
     for key, estacion in estaciones.iterrows():
@@ -41,8 +42,9 @@ def getXeY_from_list(wrfout: str, estaciones: pd.DataFrame):
 
     estaciones['x'] = lista_x
     estaciones['y'] = lista_y
-    
+
     return estaciones
+
 
 def getXeY(wrfout: str, lat: float, lon: float):
     """ Obtiene los x e y del lat long
@@ -72,6 +74,7 @@ def filter_by_dates(file_list, start_date, end_date, extra_filter=None):
             filtered_dates.append(name)
     return filtered_dates
 
+
 @ray.remote
 def extraerWrfoutSerie(file_paths, latlong_estaciones, par, run):
     """ extrae de los arechivos wrfout listados en file_paths
@@ -91,11 +94,16 @@ def extraerWrfoutSerie(file_paths, latlong_estaciones, par, run):
         except RuntimeError:
             print("Corrupted file")
             return
- 
-        for key, estacion in latlong_estaciones.iterrows():          
+        except IndexError:
+            print("Corrupted file, no index")
+            return
+
+        for key, estacion in latlong_estaciones.iterrows():
             var_ema = var[:, int(estacion.y), int(estacion.x)]
 
             dfVARema = pd.DataFrame(var_ema.to_pandas(), columns=[var_name])
+            # dfVARema['T2'] = dfVARema['T2'] - 273.15
+            
             if var_name == 'T2':
                 dfVARema['T2'] = dfVARema['T2'] - 273.15
                 tTSK = wrf.getvar(wrf_temp, 'TSK', timeidx=wrf.ALL_TIMES)
@@ -103,14 +111,15 @@ def extraerWrfoutSerie(file_paths, latlong_estaciones, par, run):
                 dfTSKema = pd.DataFrame(tTSK_ema.to_pandas(), columns=['TSK'])
                 dfTSKema['TSK'] = dfTSKema['TSK'] - 273.15
                 dfVARema = getT2product(dfVARema, dfTSKema)
-                var_name = 'T2P'
-                
+                var_name_print = 'T2P'
+            
             dfData = dfVARema[9:33]
-            dfData.to_csv(f'csv_output/{estacion.NOMBRE}_{var_name}_{run}_{par}.csv', mode='a', header=None)
+            dfData.to_csv(f'csv_output/{estacion.NOMBRE}_{var_name_print}_{run}_{par}.csv', mode='a', header=None)
             dfData = 0
- 
+
     wrf_temp.close()
     wrf_temp = 0
+
 
 @ray.remote
 def extraer_serie_por_corrida(file_paths, latlong_estaciones, par, run):
@@ -118,7 +127,7 @@ def extraer_serie_por_corrida(file_paths, latlong_estaciones, par, run):
     para la posicion (x, y) toda la serie de la variable
     seleccionada"""
 
-    print(f'Processing este: {file_paths}')
+    print(f'Processing este: {file_paths}') 
 
     try:
         wrf_temp = Dataset(file_paths)
@@ -134,13 +143,13 @@ def extraer_serie_por_corrida(file_paths, latlong_estaciones, par, run):
         except IndexError:
             print("Corrupted file, no index")
             return
- 
-        for key, estacion in latlong_estaciones.iterrows():          
+
+        for key, estacion in latlong_estaciones.iterrows():
             var_ema = var[:, int(estacion.y), int(estacion.x)]
 
             dfVARema = pd.DataFrame(var_ema.to_pandas(), columns=[var_name])
             dfVARema['T2'] = dfVARema['T2'] - 273.15
-            
+            """
             if var_name ==  'T2':
                 dfVARema['T2'] = dfVARema['T2'] - 273.15
                 tTSK = wrf.getvar(wrf_temp, 'TSK', timeidx=wrf.ALL_TIMES)
@@ -149,14 +158,14 @@ def extraer_serie_por_corrida(file_paths, latlong_estaciones, par, run):
                 dfTSKema['TSK'] = dfTSKema['TSK'] - 273.15
                 dfVARema = getT2product(dfVARema, dfTSKema)
                 var_name_print = 'T2P'
-            
-            #var_name_print = 'T2'
+            """
+            var_name_print = 'T2'
             timestamp = dfVARema.index[0]  # to get rundate
             dfVARema.reset_index(drop=True, inplace=True)
             dfVARema.rename(columns={f'{var_name_print}': f"{timestamp}"}, inplace=True)
             dfVARema.T.to_csv(f'csv_output/{estacion.NOMBRE}_{var_name_print}_{run}_{par}.csv', mode='a', header=None)
             dfVARema = 0
- 
+
     wrf_temp.close()
     wrf_temp = 0
 
@@ -174,13 +183,12 @@ def print_files(filename, latlong_estaciones, param, run):
 
 def generar_serie(path: str, inicio: str, fin: str,
                   param: str, run: str, path_old, select_serie):
-    
-    latlong_estaciones = pd.read_csv('csvs/estaciones_cuidad.csv')
-    base = '/home/datos/wrf/wrfout/20*_*/'
-    base_nas = '/opt/yakunfs/wrfout/20*_*/'
+
+    latlong_estaciones = pd.read_csv('csvs/estaciones_faltantes.csv')
+    base = '/home/datos/wrfout/20*_*/'
 
     lista = obtenerListaArchivos(f"{base}{path}")
-    lista.extend(obtenerListaArchivos(f"{base_nas}{path}"))
+
     if path_old != 0:
         lista.extend(obtenerListaArchivos(f"{base}{path_old}"))
 
@@ -190,7 +198,7 @@ def generar_serie(path: str, inicio: str, fin: str,
         print('no matced dates')
         return
     print("Extrating data...")
-    
+
     latlong_estaciones = getXeY_from_list(lista_filtrada[0], latlong_estaciones)
 
     print(latlong_estaciones)
@@ -212,8 +220,6 @@ def generar_serie(path: str, inicio: str, fin: str,
 
 
 def main():
-    
-
     parser = argparse.ArgumentParser(prog="Obtener variable puntual WRF,\
                                            generarSerie.py")
 
