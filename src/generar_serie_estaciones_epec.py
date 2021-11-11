@@ -148,8 +148,9 @@ def extraer_serie_por_corrida(file_paths, latlong_estaciones, par, run):
             var_ema = var[:, int(estacion.y), int(estacion.x)]
 
             dfVARema = pd.DataFrame(var_ema.to_pandas(), columns=[var_name])
-            dfVARema['T2'] = dfVARema['T2'] - 273.15
-            """
+            
+            # dfVARema['T2'] = dfVARema['T2'] - 273.15
+            
             if var_name ==  'T2':
                 dfVARema['T2'] = dfVARema['T2'] - 273.15
                 tTSK = wrf.getvar(wrf_temp, 'TSK', timeidx=wrf.ALL_TIMES)
@@ -158,7 +159,7 @@ def extraer_serie_por_corrida(file_paths, latlong_estaciones, par, run):
                 dfTSKema['TSK'] = dfTSKema['TSK'] - 273.15
                 dfVARema = getT2product(dfVARema, dfTSKema)
                 var_name_print = 'T2P'
-            """
+            
             var_name_print = 'T2'
             timestamp = dfVARema.index[0]  # to get rundate
             dfVARema.reset_index(drop=True, inplace=True)

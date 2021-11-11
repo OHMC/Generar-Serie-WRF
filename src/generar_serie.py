@@ -114,7 +114,7 @@ def generar_serie(path: str, lat: float, lon: float, inicio: str, fin: str,
 
 
 def main():
-    base = '/home/datos/wrfdatos/wrfout/20*_*/'
+    base = '/home/datos/wrf/wrfout/20*_*/'
 
     parser = argparse.ArgumentParser(prog="Obtener variable puntual WRF,\
                                            generarSerie.py")
